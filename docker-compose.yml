@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: radius-web-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dbradius-web-tester}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      TZ: America/Sao_Paulo
+    ports:
+      # Exposto apenas localmente no host para desenvolvimento ou inspeção
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER:-postgres}" -d "$${POSTGRES_DB:-dbradius-web-tester}"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - radius-network
+    security_opt:
+      - no-new-privileges:true
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: radius-web-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-dbradius-web-tester}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-supersecret-radius-web-tester-dev-key-2026-min-32-chars}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      RADCLIENT_PATH: /usr/bin/radclient
+      CORS_ORIGIN: "http://localhost:5173"
+    ports:
+      - "3001:3001"
+    networks:
+      - radius-network
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: radius-web-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+    networks:
+      - radius-network
+
+  freeradius:
+    build:
+      context: ./docker/freeradius
+      dockerfile: Dockerfile
+    container_name: radius-web-freeradius
+    restart: unless-stopped
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+      - "3799:3799/udp"
+    networks:
+      - radius-network
+
+volumes:
+  postgres_data:
+    external: true
+    name: radius-web-postgres-data
+
+networks:
+  radius-network:
+    name: radius-network
+    driver: bridge

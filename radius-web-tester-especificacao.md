@@ -9,7 +9,7 @@ A aplicação deve oferecer uma interface amigável para que operadores e equipe
 **Stacks obrigatórias:**
 - **Frontend:** React + TypeScript.
 - **Backend:** Node.js + TypeScript.
-- **Banco de dados:** PostgreSQL.
+- **Banco de dados:** PostgreSQL (Docker compose, banco em container).
 
 Tecnologias de apoio recomendadas:
 - Vite para iniciar e compilar o frontend.

@@ -1,0 +1,98 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  admin
+  operator
+}
+
+model User {
+  id           String           @id @default(uuid())
+  username     String           @unique
+  passwordHash String           @map("password_hash")
+  role         Role             @default(operator)
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  templates    PacketTemplate[]
+  executions   Execution[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model RadiusServer {
+  id              String      @id @default(uuid())
+  name            String
+  host            String
+  authPort        Int         @default(1812) @map("auth_port")
+  accountingPort  Int         @default(1813) @map("accounting_port")
+  coaPort         Int?        @default(3799) @map("coa_port")
+  secretReference String      @map("secret_reference") // Encrypted shared secret (AES-256-GCM)
+  environment     String      @default("lab")
+  isEnabled       Boolean     @default(true) @map("is_enabled")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  executions      Execution[]
+
+  @@map("radius_servers")
+}
+
+model PacketTemplate {
+  id             String       @id @default(uuid())
+  name           String
+  description    String?
+  packetType     String       @map("packet_type")
+  attributesJson Json         @map("attributes_json")
+  createdById    String       @map("created_by")
+  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("packet_templates")
+}
+
+model Execution {
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serverId       String       @map("server_id")
+  server         RadiusServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  packetType     String       @map("packet_type")
+  status         String
+  responseCode   String?      @map("response_code")
+  durationMs     Int          @map("duration_ms")
+  exitCode       Int?         @map("exit_code")
+  stdoutRedacted String?      @map("stdout_redacted") @db.Text
+  stderrRedacted String?      @map("stderr_redacted") @db.Text
+  optionsJson    Json?        @map("options_json")
+  attributesJson Json?        @map("attributes_json")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([serverId])
+  @@index([createdAt])
+  @@map("executions")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String
+  resource    String?
+  detailsJson Json?    @map("details_json")
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}

@@ -1,0 +1,24 @@
+# ==============================================================================
+# Base de Usuários para Laboratório de Testes RADIUS
+# ==============================================================================
+
+# 1. Usuário padrão para testes de sucesso (Access-Accept)
+"cliente-teste" Cleartext-Password := "senha123"
+	Reply-Message := "Autenticado com sucesso via FreeRADIUS Lab Local",
+	Framed-IP-Address = 192.168.100.50,
+	Framed-IP-Netmask = 255.255.255.0,
+	Session-Timeout = 86400,
+	Idle-Timeout = 600
+
+# 2. Usuário com atributos administrativos (Access-Accept)
+"admin-rede" Cleartext-Password := "admin123"
+	Reply-Message := "Acesso administrativo concedido",
+	Service-Type = Administrative-User
+
+# 3. Usuário configurado para falha/rejeição explícita (Access-Reject)
+"usuario-bloqueado" Auth-Type := Reject
+	Reply-Message := "Conta desativada ou bloqueada para testes de rejeicao"
+
+# 4. Usuário genérico adicional para testes rápidos
+"teste" Cleartext-Password := "teste"
+	Reply-Message := "Autenticacao OK"
