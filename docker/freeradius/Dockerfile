@@ -1,21 +1,23 @@
 FROM freeradius/freeradius-server:latest
 
-# Copia configurações personalizadas de clientes e usuários
+# Copia configurações personalizadas
 COPY clients.conf /etc/freeradius/clients.conf
-COPY users /etc/freeradius/mods-config/files/authorize
 
-# Habilita o listener de CoA / Disconnect (porta UDP 3799)
-RUN ln -sf /etc/freeradius/sites-available/coa /etc/freeradius/sites-enabled/coa
+# Copia a configuração SQL personalizada
+COPY mods-available/sql /etc/freeradius/mods-available/sql
 
-# Garante permissões estritas exigidas pelo FreeRADIUS
+# Habilita o módulo SQL e o listener de CoA
+RUN ln -sf ../mods-available/sql /etc/freeradius/mods-enabled/sql && \
+    ln -sf /etc/freeradius/sites-available/coa /etc/freeradius/sites-enabled/coa
+
+# Configura permissões
 RUN chown -R root:freerad /etc/freeradius && \
-    chmod 640 /etc/freeradius/clients.conf /etc/freeradius/mods-config/files/authorize
+    chmod 640 /etc/freeradius/clients.conf \
+              /etc/freeradius/mods-config/files/authorize \
+              /etc/freeradius/mods-available/sql
 
-# Portas padrão RADIUS:
-# 1812/udp: Autenticação (Access-Request)
-# 1813/udp: Contabilização (Accounting-Start/Stop/Interim)
-# 3799/udp: CoA & Disconnect
+# Portas RADIUS
 EXPOSE 1812/udp 1813/udp 3799/udp
 
-# Executa em modo de depuração com saída detalhada de pacotes
+# Executa em modo de depuração
 CMD ["freeradius", "-X"]

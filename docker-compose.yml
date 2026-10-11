@@ -72,6 +72,14 @@ services:
       dockerfile: Dockerfile
     container_name: radius-web-freeradius
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SQL_HOST: postgres
+      SQL_PORT: 5432
+      SQL_USER: ${POSTGRES_USER:-postgres}
+      SQL_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "1812:1812/udp"
       - "1813:1813/udp"
