@@ -141,6 +141,20 @@ O projeto inclui um container dedicado do **FreeRADIUS 3.2** pronto para testes 
 docker compose up -d freeradius
 ```
 
+O FreeRADIUS executado no container está configurado para utilizar o PostgreSQL que está em outro container do projeto. Entretanto, antes de executar o projeto completamente, é necessário inicializar o banco de dados.
+Para isso, siga estas etapas:
+1. Crie o banco de dados radius: acesse o PostgreSQL do container radius-web-postgres e execute o comando CREATE DATABASE radius;.
+2. Crie as tabelas do FreeRADIUS: após criar o banco, execute o comando abaixo no terminal do seu computador, fora do ambiente interativo do PostgreSQL:
+
+```bash
+docker exec -i radius-web-freeradius \
+  cat /etc/freeradius/mods-config/sql/main/postgresql/schema.sql \
+  | docker exec -i radius-web-postgres \
+      psql -U postgres -d radius
+```
+Esse comando lê o arquivo schema.sql, localizado no container do FreeRADIUS, e executa seus comandos SQL no banco radius, no container do PostgreSQL.
+Essa etapa é necessária para criar as tabelas e os demais objetos utilizados pelo FreeRADIUS durante a autenticação e a contabilização das sessões.
+
 ### Configurações do Container (`radius-web-freeradius`):
 - **Shared Secret:** `testing123`
 - **Portas Expostas (UDP):**
