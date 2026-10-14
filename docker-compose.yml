@@ -28,15 +28,39 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # Aplica as migrações pendentes antes de iniciar a API
+  migrate:
+    image: radius-web-api:local
+    container_name: radius-web-migrate
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-dbradius-web-tester}?schema=public
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+    command:
+      - sh
+      - -c
+      - npm run prisma:deploy --workspace=apps/api && npm run prisma:seed --workspace=apps/api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - radius-network
+
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    image: radius-web-api:local
     container_name: radius-web-api
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     env_file:
       - .env
     environment:
@@ -68,7 +92,7 @@ services:
 
   freeradius:
     build:
-      context: ./docker/freeradius
+      context: ./freeradius-docker/freeradius
       dockerfile: Dockerfile
     container_name: radius-web-freeradius
     restart: unless-stopped
