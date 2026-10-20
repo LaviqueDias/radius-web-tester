@@ -71,8 +71,11 @@ export function sanitizeOutput(output: string, secret?: string): string {
   if (secret && secret.length >= 3) {
     sanitized = sanitized.replaceAll(secret, '***REDACTED_SECRET***');
   }
-  // Redact User-Password values if present in plaintext in output
-  sanitized = sanitized.replace(/(User-Password\s*=\s*)(["']?[^"'\n]+["']?)/gi, '$1"***REDACTED***"');
+  // Redact password values if present in plaintext in output
+  sanitized = sanitized.replace(
+    /((?:User-Password|Cleartext-Password|CHAP-Password)\s*=\s*)(["']?[^"'\n]+["']?)/gi,
+    '$1"***REDACTED***"'
+  );
 
   if (sanitized.length > MAX_OUTPUT_SIZE) {
     sanitized =
@@ -101,11 +104,13 @@ export async function executeRadclient(options: ExecuteOptions): Promise<Executi
     // 2. Prepare destination and mode arguments
     const destination = `${options.host}:${options.port}`;
     const timeout = Math.min(Math.max(options.timeoutSeconds || 3, 1), 30);
-    const retries = Math.min(Math.max(options.retries ?? 2, 0), 5);
+    const retries = Math.min(Math.max(options.retries ?? 2, 1), 5);
     const binaryPath = process.env.RADCLIENT_PATH || 'radclient';
 
-    // Arguments: radclient -r <retries> -t <timeout> -S <secretFile> <host:port> <mode>
+    // Arguments: radclient -x -r <retries> -t <timeout> -S <secretFile> <host:port> <mode>
+    // -x (debug mode) is required for radclient to output attributes of received reply packets
     const args = [
+      '-x',
       '-r',
       String(retries),
       '-t',

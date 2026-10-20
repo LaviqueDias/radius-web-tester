@@ -82,9 +82,37 @@ export function parseRadclientOutput(
   }
 
   // 4. Parse returned attributes from stdout
+  // When radclient runs in debug mode (-x), stdout contains both sent and received packets.
+  // We must isolate the attributes that belong to the received packet block.
   const parsedAttributes: Array<{ name: string; value: string }> = [];
   const lines = stdout.split('\n');
-  for (const rawLine of lines) {
+
+  // Find the last "Received" packet header in stdout
+  let receivedIndex = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (/^Received\b/i.test(lines[i].trim())) {
+      receivedIndex = i;
+      break;
+    }
+  }
+
+  // If a "Received" block was found, parse lines after it until the next section
+  // If no "Received" line exists and also no "Sent" line exists (e.g. simple test mock), fallback to parsing all lines
+  let linesToParse: string[] = [];
+  if (receivedIndex >= 0) {
+    for (let i = receivedIndex + 1; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      // Stop if another packet header or summary begins
+      if (/^(?:Sent|Received|Packet summary)\b/i.test(trimmed)) {
+        break;
+      }
+      linesToParse.push(lines[i]);
+    }
+  } else if (!lines.some((l) => /^Sent\b/i.test(l.trim()))) {
+    linesToParse = lines;
+  }
+
+  for (const rawLine of linesToParse) {
     const line = rawLine.trim();
     // Attribute lines match "Attribute-Name = value" or "Attribute-Name := value"
     const attrMatch = line.match(/^([A-Za-z0-9_\-\.]+)\s*(?:=|:=|\+=)\s*(.+)$/);
